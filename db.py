@@ -17,6 +17,7 @@ class Database:
                 username TEXT,
                 vip_until TIMESTAMP
             );
+            
             CREATE TABLE IF NOT EXISTS videos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 code TEXT UNIQUE,
@@ -26,27 +27,32 @@ class Database:
                 price INTEGER,
                 views INTEGER DEFAULT 0
             );
+            
             CREATE TABLE IF NOT EXISTS video_qualities (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 video_id INTEGER,
                 quality TEXT,
                 file_id TEXT
             );
+            
             CREATE TABLE IF NOT EXISTS purchases (
                 user_id INTEGER,
                 video_id INTEGER,
                 PRIMARY KEY(user_id, video_id)
             );
+            
             CREATE TABLE IF NOT EXISTS likes (
                 user_id INTEGER,
                 video_id INTEGER,
                 is_like INTEGER,
                 PRIMARY KEY(user_id, video_id)
             );
+            
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT
             );
+            
             CREATE TABLE IF NOT EXISTS channels (
                 channel_id INTEGER PRIMARY KEY,
                 url TEXT,
@@ -54,7 +60,6 @@ class Database:
             );
         ''')
         await self.conn.commit()
-
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('card', '8600 0000 0000 0000')")
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('admin_link', '@admin')")
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('base_channel', '')")
