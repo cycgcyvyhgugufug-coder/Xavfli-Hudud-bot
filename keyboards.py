@@ -14,7 +14,8 @@ def admin_main_kb():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Video qo‘shish"), KeyboardButton(text="Video o'chirish")],
-            [KeyboardButton(text="Statistika"), KeyboardButton(text="Sozlamalar")]
+            [KeyboardButton(text="📢 Reklama"), KeyboardButton(text="Statistika")],
+            [KeyboardButton(text="Sozlamalar")]
         ],
         resize_keyboard=True
     )
@@ -154,3 +155,11 @@ def my_videos_kb(videos, page, total_pages):
         builder.row(*nav)
         
     return builder.as_markup()
+
+def broadcast_target_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👤 Oddiy obunachi", callback_data="broadcast_regular")],
+            [InlineKeyboardButton(text="💎 VIP obunachi", callback_data="broadcast_vip")]
+        ]
+    )

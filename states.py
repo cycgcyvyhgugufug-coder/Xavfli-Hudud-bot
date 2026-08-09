@@ -21,3 +21,9 @@ class AdminSettings(StatesGroup):
 class UserPayment(StatesGroup):
     waiting_for_receipt_vip = State()
     waiting_for_receipt_video = State()
+
+class AdminBroadcast(StatesGroup):
+    waiting_for_photo = State()
+    waiting_for_text = State()
+    waiting_for_button_name = State()
+    waiting_for_button_url = State()
