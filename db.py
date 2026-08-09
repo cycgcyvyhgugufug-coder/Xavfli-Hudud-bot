@@ -47,6 +47,12 @@ class Database:
                 is_like INTEGER,
                 PRIMARY KEY(user_id, video_id)
             );
+            CREATE TABLE IF NOT EXISTS video_views (
+                user_id INTEGER,
+                video_id INTEGER,
+                viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(user_id, video_id)
+            );
             
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
@@ -66,7 +72,11 @@ class Database:
         await self.conn.commit()
 
     async def add_user(self, user_id, name, username):
-        await self.conn.execute("INSERT OR IGNORE INTO users (user_id, name, username) VALUES (?, ?, ?)", (user_id, name, username))
+        await self.conn.execute(
+            """INSERT INTO users (user_id, name, username) VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET name=excluded.name, username=excluded.username""",
+            (user_id, name, username)
+        )
         await self.conn.commit()
 
     async def get_user(self, user_id):
@@ -84,7 +94,15 @@ class Database:
 
     async def set_vip(self, user_id, days):
         now = datetime.datetime.now()
-        vip_until = now + datetime.timedelta(days=days)
+        user = await self.get_user(user_id)
+        current_until = None
+        if user and user[3]:
+            try:
+                current_until = datetime.datetime.fromisoformat(str(user[3]))
+            except (TypeError, ValueError):
+                current_until = None
+        base = current_until if current_until and current_until > now else now
+        vip_until = base + datetime.timedelta(days=days)
         await self.conn.execute("UPDATE users SET vip_until = ? WHERE user_id = ?", (vip_until, user_id))
         await self.conn.commit()
 
@@ -95,20 +113,15 @@ class Database:
             return vip_until > datetime.datetime.now()
         return False
 
-
     async def get_broadcast_users(self, target):
-        """Reklama uchun foydalanuvchi IDlarini qaytaradi.
-        target: 'regular' yoki 'vip'
-        """
-        now = datetime.datetime.now().isoformat(sep=" ")
+        now = datetime.datetime.now()
         if target == "vip":
             query = "SELECT user_id FROM users WHERE vip_until IS NOT NULL AND vip_until > ?"
         else:
             query = "SELECT user_id FROM users WHERE vip_until IS NULL OR vip_until <= ?"
-
         async with self.conn.execute(query, (now,)) as cursor:
             rows = await cursor.fetchall()
-            return [row[0] for row in rows]
+        return [row[0] for row in rows]
 
     async def add_video(self, code, cover_id, post_desc, main_desc, price):
         async with self.conn.execute("INSERT INTO videos (code, cover_id, post_desc, main_desc, price) VALUES (?, ?, ?, ?, ?)", (code, cover_id, post_desc, main_desc, price)) as cursor:
@@ -137,7 +150,23 @@ class Database:
             res = await cursor.fetchone()
             return res[0] if res else None
 
+    async def count_view_once(self, user_id, video_id):
+        cursor = await self.conn.execute(
+            "INSERT OR IGNORE INTO video_views (user_id, video_id) VALUES (?, ?)",
+            (user_id, video_id)
+        )
+        if cursor.rowcount:
+            await self.conn.execute(
+                "UPDATE videos SET views = views + 1 WHERE id = ?",
+                (video_id,)
+            )
+            await self.conn.commit()
+            return True
+        await self.conn.commit()
+        return False
+
     async def increment_views(self, video_id):
+        # Backward-compatible helper; new code should use count_view_once().
         await self.conn.execute("UPDATE videos SET views = views + 1 WHERE id = ?", (video_id,))
         await self.conn.commit()
 
