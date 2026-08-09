@@ -139,6 +139,7 @@ def my_videos_kb(videos, page, total_pages):
     builder = InlineKeyboardBuilder()
     start = (page - 1) * 10
     end = start + 10
+    
     for i, video in enumerate(videos[start:end], start=start+1):
         builder.button(text=f"Video {i}", callback_data=f"watch_video_{video[0]}")
     builder.adjust(2)
@@ -148,8 +149,8 @@ def my_videos_kb(videos, page, total_pages):
         nav.append(InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"my_videos_{page-1}"))
     if page < total_pages:
         nav.append(InlineKeyboardButton(text="Oldinga ➡️", callback_data=f"my_videos_{page+1}"))
-    
+        
     if nav:
         builder.row(*nav)
-    
+        
     return builder.as_markup()
