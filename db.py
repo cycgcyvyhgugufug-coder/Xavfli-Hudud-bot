@@ -168,12 +168,18 @@ class Database:
                 (gift_id,)
             ) as cur:
                 gift = await cur.fetchone()
-            if not gift or gift[5] != 1:
+            if not gift:
                 await self.conn.rollback(); return "full", gift
 
+            # Avval aynan shu foydalanuvchi bu giftni olgan-olmaganini tekshiramiz.
+            # Gift limiti tugaganidan keyin ham qayta bosganda "allaqachon oldingiz"
+            # xabari chiqishi kerak.
             async with self.conn.execute("SELECT 1 FROM gift_claims WHERE gift_id=? AND user_id=?", (gift_id, user_id)) as cur:
                 if await cur.fetchone():
                     await self.conn.rollback(); return "already", gift
+
+            if gift[5] != 1:
+                await self.conn.rollback(); return "full", gift
 
             async with self.conn.execute("SELECT vip_until FROM users WHERE user_id=?", (user_id,)) as cur:
                 user = await cur.fetchone()
@@ -195,7 +201,9 @@ class Database:
             completed = new_count >= gift[3]
             await self.conn.execute(
                 "UPDATE gift_campaigns SET claimed_count=?, active=?, completed_notified=? WHERE id=?",
-                (new_count, 0 if completed else 1, 1 if completed else gift[6], gift_id)
+                # completed_notified bu yerda o'zgarmaydi. Limit to'lgach claim
+                # handler admin uchun bildirishnomani aynan bir marta yuboradi.
+                (new_count, 0 if completed else 1, gift[6], gift_id)
             )
             await self.conn.commit()
             return "won", (gift[0], gift[1], gift[2], gift[3], new_count, 0 if completed else 1, 1 if completed else gift[6])
