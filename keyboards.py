@@ -104,6 +104,7 @@ def admin_settings_kb():
             [InlineKeyboardButton(text="Kanallar", callback_data="set_channels")],
             [InlineKeyboardButton(text="Karta raqam", callback_data="set_card")],
             [InlineKeyboardButton(text="Admin havolasi", callback_data="set_adminlink")],
+            [InlineKeyboardButton(text="Info almashtirish", callback_data="set_info")],
             [InlineKeyboardButton(text="Orqaga", callback_data="admin_back")]
         ]
     )

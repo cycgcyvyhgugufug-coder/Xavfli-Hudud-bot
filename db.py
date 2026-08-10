@@ -87,6 +87,7 @@ class Database:
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('card', '8600 0000 0000 0000')")
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('admin_link', '@admin')")
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('base_channel', '')")
+        await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('bot_info', 'Ushbu bot orqali siz turli sifatdagi (360p, 480p, 720p, 1080p) videolarni tomosha qilishingiz mumkin!\n\nSiz videolarni donalab sotib olishingiz yoki VIP tariflarni xarid qilib barcha videolarni cheklovsiz ko'rishingiz mumkin.\nDonalab olingan videolar doimiy sizning kabinetingizda qoladi.\nVIP tariflarida esa obuna tugagunga qadar barcha videolarni ko'rish huquqiga ega bo'lasiz.')")
         await self.conn.commit()
 
     async def add_user(self, user_id, name, username):

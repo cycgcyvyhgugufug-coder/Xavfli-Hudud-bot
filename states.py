@@ -17,6 +17,7 @@ class AdminSettings(StatesGroup):
     waiting_for_mandatory_channel = State()
     waiting_for_card_number = State()
     waiting_for_admin_link = State()
+    waiting_for_info = State()
 
 class UserPayment(StatesGroup):
     waiting_for_receipt_vip = State()
