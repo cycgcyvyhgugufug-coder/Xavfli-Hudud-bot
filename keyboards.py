@@ -174,17 +174,21 @@ def gifts_main_kb():
         [InlineKeyboardButton(text="Orqaga", callback_data="gift_back")],
     ])
 
-def gift_tariffs_kb(prefix):
-    return InlineKeyboardMarkup(inline_keyboard=[
+def gift_tariffs_kb(prefix, include_back=False):
+    rows = [
         [InlineKeyboardButton(text="1 kunlik 5 000 so'm", callback_data=f"{prefix}_1")],
         [InlineKeyboardButton(text="1 haftalik 15 000 so'm", callback_data=f"{prefix}_7")],
         [InlineKeyboardButton(text="1 oylik 25 000 so'm", callback_data=f"{prefix}_30")],
-    ])
+    ]
+    if include_back:
+        rows.append([InlineKeyboardButton(text="Orqaga", callback_data="gift_back")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
-def gift_confirm_kb(yes_callback, no_callback):
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Ha", callback_data=yes_callback), InlineKeyboardButton(text="Yo'q", callback_data=no_callback)]
-    ])
+def gift_confirm_kb(yes_callback, no_callback, include_back=False):
+    rows = [[InlineKeyboardButton(text="Ha", callback_data=yes_callback), InlineKeyboardButton(text="Yo'q", callback_data=no_callback)]]
+    if include_back:
+        rows.append([InlineKeyboardButton(text="Orqaga", callback_data="gift_back")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 def gift_back_kb():
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Orqaga", callback_data="gift_back")]])
