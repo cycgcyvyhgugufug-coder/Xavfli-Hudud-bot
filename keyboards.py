@@ -14,8 +14,8 @@ def admin_main_kb():
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Video qo‘shish"), KeyboardButton(text="Video o'chirish")],
-            [KeyboardButton(text="📢 Reklama"), KeyboardButton(text="Statistika")],
-            [KeyboardButton(text="Sozlamalar")]
+            [KeyboardButton(text="📢 Reklama"), KeyboardButton(text="🎁 Hadyalar")],
+            [KeyboardButton(text="Statistika"), KeyboardButton(text="Sozlamalar")]
         ],
         resize_keyboard=True
     )
