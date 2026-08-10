@@ -164,3 +164,30 @@ def broadcast_target_kb():
             [InlineKeyboardButton(text="💎 VIP obunachi", callback_data="broadcast_vip")]
         ]
     )
+
+
+def gifts_main_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👤 ID orqali", callback_data="gift_by_id")],
+        [InlineKeyboardButton(text="🎲 Random", callback_data="gift_random")],
+        [InlineKeyboardButton(text="💎 VIPni qaytarish", callback_data="gift_revoke")],
+        [InlineKeyboardButton(text="Orqaga", callback_data="gift_back")],
+    ])
+
+def gift_tariffs_kb(prefix):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="1 kunlik 5 000 so'm", callback_data=f"{prefix}_1")],
+        [InlineKeyboardButton(text="1 haftalik 15 000 so'm", callback_data=f"{prefix}_7")],
+        [InlineKeyboardButton(text="1 oylik 25 000 so'm", callback_data=f"{prefix}_30")],
+    ])
+
+def gift_confirm_kb(yes_callback, no_callback):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Ha", callback_data=yes_callback), InlineKeyboardButton(text="Yo'q", callback_data=no_callback)]
+    ])
+
+def gift_back_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Orqaga", callback_data="gift_back")]])
+
+def gift_claim_kb(gift_id):
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎁 Sovg'ani olish", callback_data=f"claim_gift_{gift_id}")]])

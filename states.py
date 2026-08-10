@@ -28,3 +28,14 @@ class AdminBroadcast(StatesGroup):
     waiting_for_text = State()
     waiting_for_button_name = State()
     waiting_for_button_url = State()
+
+
+class AdminGifts(StatesGroup):
+    waiting_for_user_id = State()
+    waiting_for_id_tariff = State()
+    waiting_for_id_confirm = State()
+    waiting_for_random_tariff = State()
+    waiting_for_random_count = State()
+    waiting_for_random_confirm = State()
+    waiting_for_revoke_id = State()
+    waiting_for_revoke_confirm = State()

@@ -64,6 +64,24 @@ class Database:
                 url TEXT,
                 is_mandatory INTEGER
             );
+
+            CREATE TABLE IF NOT EXISTS gift_campaigns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                days INTEGER NOT NULL,
+                tariff_name TEXT NOT NULL,
+                max_winners INTEGER NOT NULL,
+                claimed_count INTEGER NOT NULL DEFAULT 0,
+                active INTEGER NOT NULL DEFAULT 1,
+                completed_notified INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS gift_claims (
+                gift_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (gift_id, user_id)
+            );
         ''')
         await self.conn.commit()
         await self.conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('card', '8600 0000 0000 0000')")
@@ -122,6 +140,99 @@ class Database:
         async with self.conn.execute(query, (now,)) as cursor:
             rows = await cursor.fetchall()
         return [row[0] for row in rows]
+
+    async def get_non_vip_users(self):
+        now = datetime.datetime.now()
+        async with self.conn.execute(
+            "SELECT user_id FROM users WHERE vip_until IS NULL OR vip_until <= ?",
+            (now,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
+    async def create_gift_campaign(self, days, tariff_name, max_winners):
+        async with self.conn.execute(
+            "INSERT INTO gift_campaigns (days, tariff_name, max_winners) VALUES (?, ?, ?)",
+            (days, tariff_name, max_winners)
+        ) as cursor:
+            gift_id = cursor.lastrowid
+        await self.conn.commit()
+        return gift_id
+
+    async def claim_gift(self, gift_id, user_id):
+        # Atomik claim: bir vaqtning o'zida ko'p odam bosganda limit oshib ketmaydi.
+        await self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            async with self.conn.execute(
+                "SELECT id, days, tariff_name, max_winners, claimed_count, active, completed_notified FROM gift_campaigns WHERE id = ?",
+                (gift_id,)
+            ) as cur:
+                gift = await cur.fetchone()
+            if not gift or gift[5] != 1:
+                await self.conn.rollback(); return "full", gift
+
+            async with self.conn.execute("SELECT 1 FROM gift_claims WHERE gift_id=? AND user_id=?", (gift_id, user_id)) as cur:
+                if await cur.fetchone():
+                    await self.conn.rollback(); return "already", gift
+
+            async with self.conn.execute("SELECT vip_until FROM users WHERE user_id=?", (user_id,)) as cur:
+                user = await cur.fetchone()
+            if not user:
+                await self.conn.rollback(); return "not_found", gift
+
+            if user[0]:
+                try:
+                    if datetime.datetime.fromisoformat(str(user[0])) > datetime.datetime.now():
+                        await self.conn.rollback(); return "vip", gift
+                except (TypeError, ValueError):
+                    pass
+
+            new_count = gift[4] + 1
+            if new_count > gift[3]:
+                await self.conn.rollback(); return "full", gift
+
+            await self.conn.execute("INSERT INTO gift_claims (gift_id,user_id) VALUES (?,?)", (gift_id,user_id))
+            completed = new_count >= gift[3]
+            await self.conn.execute(
+                "UPDATE gift_campaigns SET claimed_count=?, active=?, completed_notified=? WHERE id=?",
+                (new_count, 0 if completed else 1, 1 if completed else gift[6], gift_id)
+            )
+            await self.conn.commit()
+            return "won", (gift[0], gift[1], gift[2], gift[3], new_count, 0 if completed else 1, 1 if completed else gift[6])
+        except Exception:
+            await self.conn.rollback()
+            raise
+
+    async def get_gift_winners(self, gift_id):
+        async with self.conn.execute(
+            "SELECT u.user_id, u.name, u.username FROM gift_claims g JOIN users u ON u.user_id=g.user_id WHERE g.gift_id=? ORDER BY g.claimed_at ASC",
+            (gift_id,)
+        ) as cur:
+            return await cur.fetchall()
+
+    async def mark_gift_completed_notified(self, gift_id):
+        async with self.conn.execute(
+            "UPDATE gift_campaigns SET completed_notified=1 WHERE id=? AND completed_notified=0",
+            (gift_id,)
+        ) as cur:
+            changed=cur.rowcount
+        await self.conn.commit()
+        return changed == 1
+
+    async def revoke_vip(self, user_id):
+        user=await self.get_user(user_id)
+        if not user:
+            return "not_found"
+        if not user[3]:
+            return "no_vip"
+        try:
+            if datetime.datetime.fromisoformat(str(user[3])) <= datetime.datetime.now():
+                return "no_vip"
+        except (TypeError, ValueError):
+            return "no_vip"
+        await self.conn.execute("UPDATE users SET vip_until=NULL WHERE user_id=?", (user_id,))
+        await self.conn.commit()
+        return "revoked"
 
     async def add_video(self, code, cover_id, post_desc, main_desc, price):
         async with self.conn.execute("INSERT INTO videos (code, cover_id, post_desc, main_desc, price) VALUES (?, ?, ?, ?, ?)", (code, cover_id, post_desc, main_desc, price)) as cursor:
@@ -231,9 +342,9 @@ class Database:
             return await cursor.fetchall()
             
     async def get_all_channels(self):
-        async with self.conn.execute("SELECT id, channel_id, url, is_mandatory FROM channels") as cursor:
+        async with self.conn.execute("SELECT channel_id, channel_id, url, is_mandatory FROM channels") as cursor:
             return await cursor.fetchall()
 
     async def delete_channel(self, db_id):
-        await self.conn.execute("DELETE FROM channels WHERE id = ?", (db_id,))
+        await self.conn.execute("DELETE FROM channels WHERE channel_id = ?", (db_id,))
         await self.conn.commit()
