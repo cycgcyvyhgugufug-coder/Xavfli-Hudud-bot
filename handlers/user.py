@@ -425,7 +425,7 @@ async def show_rules_handler(call: types.CallbackQuery):
         "Qoidalar\n\n"
         "1) Havolani ommaviy kanal yoki guruhlarda tarqatish taqiqlanadi. "
         "Faqat shaxsiy xabar orqali, ishonchli do'stlaringizga birma-bir yuborishingiz mumkin.\n\n"
-        "2) Bitta qurilmadan bir nechta Telegram hisob ochib, o'zingizga o'zingiz "
+        "2) Bitta qurilmdan bir nechta Telegram hisob ochib, o'zingizga o'zingiz "
         "referal yig'ish taqiqlanadi. Biz faqat jonli, haqiqiy foydalanuvchilar uchun "
         "mukofot beramiz, soxta hisoblar uchun emas.\n\n"
         "3) Foydalanuvchilarni yolg'on ma'lumot bilan aldab taklif qilish taqiqlanadi. "
@@ -486,6 +486,7 @@ async def select_vip_handler(call: types.CallbackQuery, db: Database):
     price = prices.get(days)
     user_id = call.from_user.id
     balance = await db.get_balance(user_id)
+    tariff_label = kb.VIP_LABELS[days]
 
     if balance < price:
         await call.message.edit_text(
@@ -495,23 +496,36 @@ async def select_vip_handler(call: types.CallbackQuery, db: Database):
             "Hisobingizni to'ldirish uchun Kabinetdagi \"Hisobni to'ldirish\" "
             "bo'limidan foydalaning!",
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="Orqaga", callback_data="back_cabinet")]
+                [types.InlineKeyboardButton(text="Orqaga", callback_data="buy_vip")]
             ])
         )
         return
 
+    await call.message.edit_text(
+        f"Siz **{tariff_label}** VIP obunasini sotib olmoqchisiz.\n\n"
+        f"Narxi: {fmt_money(price)}\n"
+        f"Hisobingizdagi balans: {fmt_money(balance)}\n\n"
+        "Sotib olishni tasdiqlaysizmi?",
+        reply_markup=kb.confirm_purchase_kb("vip", days),
+        parse_mode="Markdown"
+    )
+
+
+@router.callback_query(F.data.startswith("conf_yes_vip_"))
+async def confirm_vip_purchase(call: types.CallbackQuery, db: Database):
+    days = int(call.data.split("_")[3])
+    prices = await db.get_vip_prices()
+    price = prices.get(days)
+    user_id = call.from_user.id
+    balance = await db.get_balance(user_id)
+
+    if balance < price:
+        await call.answer("Balansingizda yetarli mablag' qolmagan!", show_alert=True)
+        return
+
     ok, new_balance = await db.change_balance(user_id, -price, "vip_purchase", f"VIP {days} kun")
     if not ok:
-        await call.message.edit_text(
-            "Balansingizda yetarli mablag' yo'q.\n\n"
-            f"Kerak: {fmt_money(price)}\n"
-            f"Balansingiz: {fmt_money(new_balance)}\n\n"
-            "Hisobingizni to'ldirish uchun Kabinetdagi \"Hisobni to'ldirish\" "
-            "bo'limidan foydalaning!",
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="Orqaga", callback_data="back_cabinet")]
-            ])
-        )
+        await call.answer("Xatolik yuz berdi.", show_alert=True)
         return
 
     vip_until = await db.set_vip(user_id, days)
@@ -523,9 +537,15 @@ async def select_vip_handler(call: types.CallbackQuery, db: Database):
         f"Balansdan yechildi: {fmt_money(price)}\n"
         f"Qolgan balans: {fmt_money(new_balance)}",
         reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="Orqaga", callback_data="back_cabinet")]
+            [types.InlineKeyboardButton(text="Kabinetga qaytish", callback_data="back_cabinet")]
         ])
     )
+
+
+@router.callback_query(F.data == "conf_no_vip")
+async def cancel_vip_purchase(call: types.CallbackQuery, db: Database):
+    prices = await db.get_vip_prices()
+    await call.message.edit_text("Qaysi tarif turini tanlaysiz?", reply_markup=kb.vip_tariff_kb(prices))
 
 
 # ==================== VIDEOLARIM ====================
@@ -641,9 +661,42 @@ async def buy_video_handler(call: types.CallbackQuery, db: Database):
         )
         return
 
+    await call.message.edit_reply_markup(
+        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+            [
+                types.InlineKeyboardButton(text="✅ Ha", callback_data=f"conf_yes_video_{video_id}"),
+                types.InlineKeyboardButton(text="❌ Yo'q", callback_data=f"conf_no_video_{video_id}")
+            ]
+        ])
+    )
+    try:
+        await call.message.edit_caption(
+            caption=f"{video[4]}\n\n💰 Narxi: {fmt_money(price)}\n💳 Balansingiz: {fmt_money(balance)}\n\n**Haqiqatan ham ushbu videoni sotib olmoqchimisiz?**",
+            parse_mode="Markdown"
+        )
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data.startswith("conf_yes_video_"))
+async def confirm_video_purchase(call: types.CallbackQuery, db: Database):
+    video_id = int(call.data.split("_")[3])
+    user_id = call.from_user.id
+    
+    video = await db.get_video(video_id)
+    if not video:
+        await call.answer("Video topilmadi.", show_alert=True)
+        return
+
+    price = video[6]
+    balance = await db.get_balance(user_id)
+    if balance < price:
+        await call.answer("Balansingizda yetarli mablag' yo'q!", show_alert=True)
+        return
+
     ok, new_balance = await db.change_balance(user_id, -price, "video_purchase", f"Video #{video_id}")
     if not ok:
-        await call.answer("Balansingizda yetarli mablag' yo'q.", show_alert=True)
+        await call.answer("Xatolik yuz berdi.", show_alert=True)
         return
 
     await db.add_purchase(user_id, video_id)
@@ -685,6 +738,23 @@ async def buy_video_handler(call: types.CallbackQuery, db: Database):
                     [types.InlineKeyboardButton(text="Kanalga o'tish", url=ad[1])]
                 ])
             )
+
+
+@router.callback_query(F.data.startswith("conf_no_video_"))
+async def cancel_video_purchase(call: types.CallbackQuery, db: Database):
+    video_id = int(call.data.split("_")[3])
+    video = await db.get_video(video_id)
+    if not video:
+        await call.message.delete()
+        return
+    
+    caption = f"{video[4]}\n\nKo'rishlar: {video[8]}"
+    owned = await user_can_watch_paid(db, call.from_user.id, video_id)
+    
+    await call.message.edit_caption(
+        caption=caption,
+        reply_markup=kb.video_post_paid_kb(video_id, owned)
+    )
 
 
 @router.callback_query(F.data.startswith("watch_paid_"))
