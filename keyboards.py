@@ -44,6 +44,15 @@ def vip_tariff_kb(prices):
     ])
 
 
+def confirm_purchase_kb(action_type: str, item_id: int):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Ha", callback_data=f"conf_yes_{action_type}_{item_id}"),
+            InlineKeyboardButton(text="❌ Yo'q", callback_data=f"conf_no_{action_type}")
+        ]
+    ])
+
+
 def rules_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Ha", callback_data="rules_yes"),
@@ -164,13 +173,10 @@ def confirm_kb(yes_cb, no_cb):
 
 
 def orqaga_kb(callback_data: str):
-    """Ko'p bosqichli jarayonlarning istalgan qadamida ishlatiladigan universal Orqaga tugmasi."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Orqaga", callback_data=callback_data)]
     ])
 
-
-# ---------- VIDEO QO'SHISH ----------
 
 def video_type_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -192,8 +198,6 @@ def admin_quality_select_kb(added_qualities):
     builder.row(InlineKeyboardButton(text="Orqaga", callback_data="cancel_to_desk"))
     return builder.as_markup()
 
-
-# ---------- REKLAMA ----------
 
 def broadcast_content_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -223,8 +227,6 @@ def broadcast_target_kb():
     ])
 
 
-# ---------- GIFT ----------
-
 def gift_tariff_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="1 kunlik", callback_data="gift_days_1")],
@@ -233,8 +235,6 @@ def gift_tariff_kb():
         [InlineKeyboardButton(text="Orqaga", callback_data="cancel_to_desk")]
     ])
 
-
-# ---------- SOZLAMALAR: KANALLAR ----------
 
 def channels_menu_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -278,8 +278,6 @@ def ad_channels_delete_type_kb():
     ])
 
 
-# ---------- SOZLAMALAR: VIP NARX ----------
-
 def vip_price_tariff_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="1 kunlik", callback_data="vipprice_1")],
@@ -288,8 +286,6 @@ def vip_price_tariff_kb():
         [InlineKeyboardButton(text="Orqaga", callback_data="cancel_to_settings")]
     ])
 
-
-# ---------- SOZLAMALAR: FOYDALANUVCHILAR ----------
 
 def user_profile_kb(user_id, is_vip, is_blocked):
     rows = [
@@ -317,8 +313,6 @@ def user_vip_give_tariff_kb(user_id):
         [InlineKeyboardButton(text="Orqaga", callback_data=f"back_profile_{user_id}")]
     ])
 
-
-# ---------- SOZLAMALAR: ADMINLARNI BOSHQARISH ----------
 
 PERMISSION_LABELS = {
     "can_edit": "Edit imkoniyatlari",
