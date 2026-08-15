@@ -471,7 +471,7 @@ async def send_referral_link(message, db: Database, bot: Bot, user_id: int, edit
     await message.answer(text, reply_markup=markup)
 
 
-# ==================== VIP OBUNA ====================
+# ==================== VIP OBUNA (YANGILANDI) ====================
 
 @router.callback_query(F.data == "buy_vip")
 async def buy_vip_handler(call: types.CallbackQuery, db: Database):
@@ -479,9 +479,53 @@ async def buy_vip_handler(call: types.CallbackQuery, db: Database):
     await call.message.edit_text("Qaysi tarif turini tanlaysiz?", reply_markup=kb.vip_tariff_kb(prices))
 
 
-@router.callback_query(F.data.startswith("vip_"))
+@router.callback_query(F.data.startswith("vip_") & ~F.data.startswith("vip_yes_") & ~F.data.startswith("vip_no_"))
 async def select_vip_handler(call: types.CallbackQuery, db: Database):
-    days = int(call.data.split("_")[1])
+    parts = call.data.split("_")
+    if len(parts) != 2 or not parts[1].isdigit():
+        return
+    days = int(parts[1])
+    prices = await db.get_vip_prices()
+    price = prices.get(days)
+    if not price:
+        await call.answer("Tarif topilmadi.", show_alert=True)
+        return
+
+    tariff_label = kb.VIP_LABELS.get(days, f"{days} kun")
+
+    # Ha / Yo'q tasdiqlash tugmalari
+    confirm_kb = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(text="Ha", callback_data=f"vip_yes_{days}"),
+                types.InlineKeyboardButton(text="Yo'q", callback_data=f"vip_no_{days}")
+            ]
+        ]
+    )
+
+    await call.message.edit_text(
+        f"Tarif: {tariff_label}\n"
+        f"Narxi: {fmt_money(price)}\n\n"
+        "Haqiqatdan ham ushbu VIP obunani sotib olmoqchimisiz?",
+        reply_markup=confirm_kb
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data.startswith("vip_no_"))
+async def vip_no_handler(call: types.CallbackQuery, db: Database):
+    prices = await db.get_vip_prices()
+    await call.message.edit_text("Qaysi tarif turini tanlaysiz?", reply_markup=kb.vip_tariff_kb(prices))
+
+
+@router.callback_query(F.data.startswith("vip_yes_"))
+async def vip_yes_handler(call: types.CallbackQuery, db: Database):
+    try:
+        days = int(call.data.split("_")[2])
+    except (ValueError, IndexError):
+        await call.answer("Xatolik yuz berdi.", show_alert=True)
+        return
+
     prices = await db.get_vip_prices()
     price = prices.get(days)
     user_id = call.from_user.id
@@ -502,20 +546,11 @@ async def select_vip_handler(call: types.CallbackQuery, db: Database):
 
     ok, new_balance = await db.change_balance(user_id, -price, "vip_purchase", f"VIP {days} kun")
     if not ok:
-        await call.message.edit_text(
-            "Balansingizda yetarli mablag' yo'q.\n\n"
-            f"Kerak: {fmt_money(price)}\n"
-            f"Balansingiz: {fmt_money(new_balance)}\n\n"
-            "Hisobingizni to'ldirish uchun Kabinetdagi \"Hisobni to'ldirish\" "
-            "bo'limidan foydalaning!",
-            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="Orqaga", callback_data="back_cabinet")]
-            ])
-        )
+        await call.answer("Balansingizda yetarli mablag' yo'q.", show_alert=True)
         return
 
     vip_until = await db.set_vip(user_id, days)
-    tariff_label = kb.VIP_LABELS[days]
+    tariff_label = kb.VIP_LABELS.get(days, f"{days} kun")
     await call.message.edit_text(
         "Tabriklaymiz, siz VIP obunachiga aylandingiz!\n\n"
         f"Tarif: {tariff_label}\n"
@@ -609,7 +644,7 @@ async def deliver_free_video(message_or_call, db: Database, video, user_id):
         )
 
 
-# ==================== SOTIB OLISHNI TASDIQLASH (YANGILANDI) ====================
+# ==================== SOTIB OLISHNI TASDIQLASH ====================
 
 @router.callback_query(F.data.startswith("buy_video_"))
 async def buy_video_handler(call: types.CallbackQuery, db: Database):
@@ -639,8 +674,8 @@ async def buy_video_handler(call: types.CallbackQuery, db: Database):
     confirm_kb = types.InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                types.InlineKeyboardButton(text="✅ Ha", callback_data=f"buy_yes_{video_id}"),
-                types.InlineKeyboardButton(text="❌ Yo'q", callback_data=f"buy_no_{video_id}")
+                types.InlineKeyboardButton(text="Ha", callback_data=f"buy_yes_{video_id}"),
+                types.InlineKeyboardButton(text="Yo'q", callback_data=f"buy_no_{video_id}")
             ]
         ]
     )
@@ -649,7 +684,7 @@ async def buy_video_handler(call: types.CallbackQuery, db: Database):
     price = video[6]
     await call.message.answer(
         f"<b>{video[4]}</b>\n\n"
-        f"💰 Narxi: {fmt_money(price)}\n\n"
+        f"Narxi: {fmt_money(price)}\n\n"
         "Haqiqatdan ham shu videoni sotib olmoqchimisiz?",
         reply_markup=confirm_kb,
         parse_mode="HTML"
@@ -670,7 +705,6 @@ async def buy_no_handler(call: types.CallbackQuery, db: Database):
         await call.message.delete()
         return
 
-    # "Yo'q" bosilganda yana oldingi reklama postiga qaytarish (yoki o'chirib yuborish)
     await call.message.delete()
     owned = await user_can_watch_paid(db, call.from_user.id, video_id)
     caption = f"{video[4]}\n\nKo'rishlar: {video[8]}"
